@@ -32,7 +32,7 @@ type TestSuite struct {
 
 func (suite *TestSuite) SetupTest() {
 	db, err := sql.Open(testDriverName, testDatabaseName)
-	require.Empty(suite.T(), err)
+	suite.NoError(err)
 	suite.db = db
 }
 
@@ -66,28 +66,25 @@ func (suite *TestSuite) TestAddGetDelete() {
 	// add
 	// добавьте новую посылку в БД, убедитесь в отсутствии ошибки и наличии идентификатора
 	number, err := store.Add(parcel)
-	require.Empty(suite.T(), err)
+	require.NoError(suite.T(), err)
 	require.NotEmpty(suite.T(), number)
 
 	// get
 	// получите только что добавленную посылку, убедитесь в отсутствии ошибки
 	// проверьте, что значения всех полей в полученном объекте совпадают со значениями полей в переменной parcel
 	storedParcel, err := store.Get(number)
-	require.Empty(suite.T(), err)
-	assert.Equal(suite.T(), number, storedParcel.Number)
-	assert.Equal(suite.T(), parcel.Client, storedParcel.Client)
-	assert.Equal(suite.T(), parcel.Address, storedParcel.Address)
-	assert.Equal(suite.T(), parcel.Status, storedParcel.Status)
-	assert.Equal(suite.T(), parcel.CreatedAt, storedParcel.CreatedAt)
+	storedParcel.Number = 0
+	require.NoError(suite.T(), err)
+	assert.Equal(suite.T(), parcel, storedParcel)
 
 	// delete
 	// удалите добавленную посылку, убедитесь в отсутствии ошибки
 	// проверьте, что посылку больше нельзя получить из БД
 	err = store.Delete(number)
-	require.Empty(suite.T(), err)
+	require.NoError(suite.T(), err)
 
 	_, err = store.Get(number)
-	require.NotEmpty(suite.T(), err)
+	require.ErrorIs(suite.T(), err, sql.ErrNoRows)
 }
 
 // TestSetAddress проверяет обновление адреса
@@ -99,24 +96,20 @@ func (suite *TestSuite) TestSetAddress() {
 	// add
 	// добавьте новую посылку в БД, убедитесь в отсутствии ошибки и наличии идентификатора
 	number, err := store.Add(parcel)
-	require.Empty(suite.T(), err)
+	require.NoError(suite.T(), err)
 	require.NotEmpty(suite.T(), number)
 
 	// set address
 	// обновите адрес, убедитесь в отсутствии ошибки
 	newAddress := "new test address"
 	err = store.SetAddress(number, newAddress)
-	require.Empty(suite.T(), err)
+	require.NoError(suite.T(), err)
 
 	// check
 	// получите добавленную посылку и убедитесь, что адрес обновился
 	storedParcel, err := store.Get(number)
-	require.Empty(suite.T(), err)
-	assert.Equal(suite.T(), number, storedParcel.Number)
-	assert.Equal(suite.T(), parcel.Client, storedParcel.Client)
+	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), newAddress, storedParcel.Address)
-	assert.Equal(suite.T(), parcel.Status, storedParcel.Status)
-	assert.Equal(suite.T(), parcel.CreatedAt, storedParcel.CreatedAt)
 }
 
 // TestSetStatus проверяет обновление статуса
@@ -128,24 +121,20 @@ func (suite *TestSuite) TestSetStatus() {
 	// add
 	// добавьте новую посылку в БД, убедитесь в отсутствии ошибки и наличии идентификатора
 	number, err := store.Add(parcel)
-	require.Empty(suite.T(), err)
+	require.NoError(suite.T(), err)
 	require.NotEmpty(suite.T(), number)
 
 	// set status
 	// обновите статус, убедитесь в отсутствии ошибки
 	newStatus := ParcelStatusSent
 	err = store.SetStatus(number, newStatus)
-	require.Empty(suite.T(), err)
+	require.NoError(suite.T(), err)
 
 	// check
 	// получите добавленную посылку и убедитесь, что статус обновился
 	storedParcel, err := store.Get(number)
-	require.Empty(suite.T(), err)
-	assert.Equal(suite.T(), number, storedParcel.Number)
-	assert.Equal(suite.T(), parcel.Client, storedParcel.Client)
-	assert.Equal(suite.T(), parcel.Address, storedParcel.Address)
+	require.NoError(suite.T(), err)
 	assert.Equal(suite.T(), newStatus, storedParcel.Status)
-	assert.Equal(suite.T(), parcel.CreatedAt, storedParcel.CreatedAt)
 }
 
 // TestGetByClient проверяет получение посылок по идентификатору клиента
@@ -170,7 +159,7 @@ func (suite *TestSuite) TestGetByClient() {
 	for i := 0; i < len(parcels); i++ {
 		// добавьте новую посылку в БД, убедитесь в отсутствии ошибки и наличии идентификатора
 		number, err := store.Add(parcels[i])
-		require.Empty(suite.T(), err)
+		require.NoError(suite.T(), err)
 		require.NotEmpty(suite.T(), number)
 
 		// обновляем идентификатор добавленной у посылки
@@ -184,7 +173,7 @@ func (suite *TestSuite) TestGetByClient() {
 	// получите список посылок по идентификатору клиента, сохранённого в переменной client
 	storedParcels, err := store.GetByClient(client)
 	// убедитесь в отсутствии ошибки
-	require.Empty(suite.T(), err)
+	require.NoError(suite.T(), err)
 	// убедитесь, что количество полученных посылок совпадает с количеством добавленных
 	assert.Equal(suite.T(), len(parcels), len(storedParcels))
 
@@ -195,11 +184,6 @@ func (suite *TestSuite) TestGetByClient() {
 		// убедитесь, что значения полей полученных посылок заполнены верно
 		addedParcel, ok := parcelMap[parcel.Number]
 		require.True(suite.T(), ok)
-		assert.Equal(suite.T(), addedParcel.Number, parcel.Number)
-		assert.Equal(suite.T(), addedParcel.Client, parcel.Client)
-		assert.Equal(suite.T(), addedParcel.Address, parcel.Address)
-		assert.Equal(suite.T(), addedParcel.Status, parcel.Status)
-		assert.Equal(suite.T(), addedParcel.CreatedAt, parcel.CreatedAt)
-
+		require.Equal(suite.T(), addedParcel, parcel)
 	}
 }

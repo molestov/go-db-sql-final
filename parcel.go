@@ -6,9 +6,7 @@ import (
 )
 
 const (
-	ParcelNotExistsErrorTemplate       = "parcel with number: %d does not exist"
-	ParcelInvalidStatusToChangeAddress = "can not change the address of a parcel with status: %s"
-	ParcelInvalidStatusToDelete        = "can not delete the parcel with status: %s"
+	ParcelNotExistsErrorTemplate = "parcel with number: %d does not exist"
 )
 
 type ParcelStore struct {
@@ -62,20 +60,15 @@ func (s ParcelStore) GetByClient(client int) ([]Parcel, error) {
 	var res []Parcel
 
 	if err != nil {
-		return res, err
+		return nil, err
 	}
-	defer func(rows *sql.Rows) {
-		err := rows.Close()
-		if err != nil {
-
-		}
-	}(rows)
+	defer rows.Close()
 
 	for rows.Next() {
 		p := Parcel{}
 		err := rows.Scan(&p.Number, &p.Client, &p.Status, &p.Address, &p.CreatedAt)
 		if err != nil {
-			return res, err
+			return nil, err
 		}
 		res = append(res, p)
 	}
@@ -100,17 +93,15 @@ func (s ParcelStore) SetStatus(number int, status string) error {
 func (s ParcelStore) SetAddress(number int, address string) error {
 	// реализуйте обновление адреса в таблице parcel
 	// менять адрес можно только если значение статуса registered
-	p, err := s.Get(number)
+	_, err := s.Get(number)
 	if err != nil {
 		return fmt.Errorf(ParcelNotExistsErrorTemplate, number)
 	}
-	if p.Status != ParcelStatusRegistered {
-		return fmt.Errorf(ParcelInvalidStatusToChangeAddress, p.Status)
-	}
 
-	_, err = s.db.Exec("UPDATE parcel SET address = :address WHERE number = :number",
+	_, err = s.db.Exec("UPDATE parcel SET address = :address WHERE number = :number AND status = :status",
 		sql.Named("number", number),
-		sql.Named("address", address))
+		sql.Named("address", address),
+		sql.Named("status", ParcelStatusRegistered))
 
 	return err
 }
@@ -118,16 +109,14 @@ func (s ParcelStore) SetAddress(number int, address string) error {
 func (s ParcelStore) Delete(number int) error {
 	// реализуйте удаление строки из таблицы parcel
 	// удалять строку можно только если значение статуса registered
-	p, err := s.Get(number)
+	_, err := s.Get(number)
 	if err != nil {
 		return fmt.Errorf(ParcelNotExistsErrorTemplate, number)
 	}
-	if p.Status != ParcelStatusRegistered {
-		return fmt.Errorf(ParcelInvalidStatusToDelete, p.Status)
-	}
 
-	_, err = s.db.Exec("DELETE FROM parcel WHERE number = :number",
-		sql.Named("number", number))
+	_, err = s.db.Exec("DELETE FROM parcel WHERE number = :number AND status = :status",
+		sql.Named("number", number),
+		sql.Named("status", ParcelStatusRegistered))
 
 	return err
 }
